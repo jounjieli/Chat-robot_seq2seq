@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python
 # coding: utf-8
 
 # In[11]:
@@ -14,6 +14,17 @@ import sys
 import shutil
 import logging
 
+#多圖片繪圖(batch,width,height,c)
+def draw_im_poly(image,im_num):
+    import matplotlib.pyplot as plt
+    row_num = int(im_num/5) + 1
+    fig = plt.figure(figsize=(10,10))
+    for num in range(im_num):        
+        subfig = plt.subplot(row_num,5,num+1)
+        subfig.axis('off')
+        subfig.imshow(image[num],cmap='gray')
+    plt.show()
+
 #取得文件資料列表(包括資料夾)
 def Get_dir_file_list(dir_path,file_filter_=None,distinguish=False,regular=False):
     """
@@ -24,7 +35,6 @@ def Get_dir_file_list(dir_path,file_filter_=None,distinguish=False,regular=False
     file_list = os.listdir(dir_path)
     file_list_ = []
     dir_list_ = []
-    #---#
     if distinguish == False:
         if file_filter_ == None:
             for file in file_list:
@@ -39,7 +49,6 @@ def Get_dir_file_list(dir_path,file_filter_=None,distinguish=False,regular=False
                     if re.search(file_filter_, file) != None:
                         file_list_.append(file)       
         file_list = file_list_
-    #---#
     if distinguish == True:
         if file_filter_ == None:
             for file in file_list:
@@ -69,7 +78,11 @@ def Get_dir_file_list(dir_path,file_filter_=None,distinguish=False,regular=False
 def CallF_DirFile_save(dir_path,function,file_head_name='new_',replace_old=False,file_filter_=None,regular=False,**kw):
     """
     **kw ==>> function(file_path=file_path,save_path=save_path,**kw)    ex. conversion='s2t'
-    expansion: def function(file_path,save_path,replace_old,....)
+    expansion: 
+    def function(file_path,save_path,replace_old,....):
+        .....
+        if replace_old == True:
+        shutil.move(save_path,file_path)   
     """
     file_list = Get_dir_file_list(dir_path=dir_path,file_filter_=file_filter_,regular=regular,distinguish=True)
     file_list = file_list[0]
@@ -95,12 +108,12 @@ def CallF_DirFile(dir_path,function,file_filter_=None,regular=False,**kw):
 
 #合併資料夾內文件，儲存
 def Merge_dir_file(dir_path,save_name='dir_file_merge',file_filter_=None,regular=False,
-                   add_line_Feed=True,file_remove_LR=False,encoding='utf-8'):
+                   add_line_Feed=True,file_remove_LF=False,encoding='utf-8'):
     """
     ::parameter::
     filter: Filter files whose file names do not include strings
-    file_remove_LR: read file and  remove LR
-    add_line_Feed: add LR after file merge    
+    file_remove_LF: read file and  remove LF
+    add_line_Feed: add LF after file merge    
     """
     file_list = Get_dir_file_list(dir_path,file_filter_=file_filter_,regular=regular)
     file_merge = ""
@@ -109,7 +122,7 @@ def Merge_dir_file(dir_path,save_name='dir_file_merge',file_filter_=None,regular
         file_path = os.path.join(dir_path,file_name)
         with open(file_path,'r',encoding=encoding) as f:
             read_file = f.read()
-            if file_remove_LR == True:
+            if file_remove_LF == True:
                 read_file = Remove_str_LR(read_file)
             file_merge += read_file
             if add_line_Feed == True:
@@ -209,7 +222,7 @@ def Trim_file_rows(file_path,save_path,row_num=1000,n_times=False,replace_old=Fa
         shutil.move(save_path,file_path)
 
 #分詞str返回str
-def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,encoding='utf-8'):
+def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,encoding='utf-8',load_userdict_path=None):
     """
     split: string to list
     stopword_path: delimiter of stopword must is '\n'
@@ -217,6 +230,9 @@ def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,e
     import jieba
     # jieba custom setting.
     jieba.set_dictionary('jieba_dict/dict.txt.big')
+    #加新詞
+    if load_userdict_path != None:
+        jieba.load_userdict(load_userdict_path)
     # load stopwords set
     #將停用詞每row分別加進集合
     stopword_set = set()
@@ -260,8 +276,9 @@ def Opencc_str(string,conversion='s2t'):
 
 #分詞文件，儲存
 def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter=' ',
-                            file_delimiter='\n',stopword_path=None,encoding='utf-8'):
+                            file_delimiter='\n',stopword_path=None,encoding='utf-8',load_userdict_path=None):
     """
+    dictionary_path: ".jieba_dict/dict.txt.big"
     batch using dir_file_call_function()
     close log using "logging.disable(lvl)"
     https://docs.python.org/3/library/logging.html
@@ -272,6 +289,9 @@ def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     # jieba custom setting.
     jieba.set_dictionary('jieba_dict/dict.txt.big')
+    #加新詞
+    if load_userdict_path != None:
+        jieba.load_userdict(load_userdict_path)
     #將停用詞每row分別加進集合
     stopword_set = set()
     if stopword_path != None:
@@ -493,4 +513,10 @@ def ToVec_list_save(line_list,save_path,vec_model,vec_padding,word_padding=None,
     X = np.array(X)
     np.save(save_path,X)
         
+
+
+# In[ ]:
+
+
+
 
