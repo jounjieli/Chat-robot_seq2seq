@@ -134,6 +134,35 @@ def Remove_str_LR(str_in):
     str_out = re.sub(r"\n", r"", str_in)
     return str_out
 
+#jieba字典合併
+def jieba_dict_merge(dir_path,save_name='jieba_merge.txt',file_filter_=None,regular=False,encoding='utf-8'):
+    file_list = Get_dir_file_list(dir_path,file_filter_=file_filter_,regular=regular)
+    save_path = os.path.join(dir_path,save_name)
+    new_dict = {}
+    for file_name in file_list:
+        file_path = os.path.join(dir_path,file_name)
+        with open(file_path,"r",encoding=encoding) as f:
+            for word_dict in f:
+                search = re.search(r"^([^ \n]*)[ \n]*([^ \n]*)[ \n]*([^ \n]*)[ \n]*",word_dict)
+                key = search.group(1)
+                word_class = search.group(3)
+
+                if (key in new_dict) == True:
+                    if (word_class == ""):
+                        None
+                    elif (new_dict[key][1] == ""):
+                        new_dict[key] = [word_dict,word_class,1]
+                    elif (word_class not in new_dict[key][1]):
+                        new_dict[key+" "+str(new_dict[key][2])] = [word_dict,word_class,1]
+                        new_dict[key][1].append(word_class)
+                        new_dict[key][2] = new_dict[key][2]+1
+                if (key in new_dict) == False:
+                    new_dict[key] = [word_dict,[word_class],1]
+
+    with open(save_path,"w",encoding=encoding) as f:
+        for key,vaule in new_dict.items():
+            f.write(vaule[0])
+
 def Shuffle_file(file_path,save_path,replace_old=False,encoding='utf-8'):
     import random
     with open(file_path, 'r',encoding=encoding) as f:
@@ -222,14 +251,16 @@ def Trim_file_rows(file_path,save_path,row_num=1000,n_times=False,replace_old=Fa
         shutil.move(save_path,file_path)
 
 #分詞str返回str
-def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,encoding='utf-8',load_userdict_path=None):
+def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,encoding='utf-8',
+                           dict_path='jieba_dict/dict.txt.big',load_userdict_path=None,
+                           cut_all=False,HMM=True):
     """
     split: string to list
     stopword_path: delimiter of stopword must is '\n'
     """
     import jieba
     # jieba custom setting.
-    jieba.set_dictionary('jieba_dict/dict.txt.big')
+    jieba.set_dictionary(dict_path)
     #加新詞
     if load_userdict_path != None:
         jieba.load_userdict(load_userdict_path)
@@ -243,7 +274,7 @@ def Jieba_str_segmentation(string,delimiter=' ',stopword_path=None,split=False,e
                 stopword_set.add(stopword.strip('\n'))   #移除頭尾換行 strip('\n')
     output = ''
     string = string.strip('\n')
-    words = jieba.cut(string, cut_all=False,HMM=True)    #進行斷詞
+    words = jieba.cut(string, cut_all=cut_all,HMM=HMM)    #進行斷詞
     for word in words:
         #依每個詞判斷是否為停用詞(不是就寫入)
         if word not in stopword_set:
@@ -276,7 +307,9 @@ def Opencc_str(string,conversion='s2t'):
 
 #分詞文件，儲存
 def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter=' ',
-                            file_delimiter='\n',stopword_path=None,encoding='utf-8',load_userdict_path=None):
+                            file_delimiter='\n',stopword_path=None,encoding='utf-8',
+                            dict_path='jieba_dict/dict.txt.big',load_userdict_path=None,
+                            cut_all=False,HMM=True):
     """
     dictionary_path: ".jieba_dict/dict.txt.big"
     batch using dir_file_call_function()
@@ -288,7 +321,7 @@ def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter
     #設置log格式，以及print的log等級
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     # jieba custom setting.
-    jieba.set_dictionary('jieba_dict/dict.txt.big')
+    jieba.set_dictionary(dict_path)
     #加新詞
     if load_userdict_path != None:
         jieba.load_userdict(load_userdict_path)
@@ -304,7 +337,7 @@ def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter
         #每一行都切成一個iter
         for texts_num, line in enumerate(content):
             line = line.strip('\n')
-            words = jieba.cut(line, cut_all=False,HMM=True)    #進行斷詞
+            words = jieba.cut(line, cut_all=cut_all,HMM=HMM)    #進行斷詞
             for word in words:
                 #依每個詞判斷是否為停用詞(不是就寫入)
                 if word not in stopword_set:
@@ -351,12 +384,13 @@ def Opencc_file(file_path,save_path,replace_old=False,conversion='s2t',encoding=
         shutil.move(save_path,file_path)
 
 #文件訓練word2vec，儲存
-def Word2vec_train(file_path,save_path,dir_path=None,save_name='word2vec_model',replace_old=False,
+def Word2vec_train(file_path,save_path,dir_path=None,replace_old=False,
                    model_size=300,model_window=10,model_min_count=5,**kw):
     """
-    batch train usage: set dir_path、save_name, file_path = None, save_path = None
+    batch train usage: set dir_path、save_path, file_path = None, save_path = None
     if Multiple files using dir_path
     """
+    #
     from gensim.models import word2vec
     logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
     # https://radimrehurek.com/gensim/models/word2vec.html
@@ -371,7 +405,7 @@ def Word2vec_train(file_path,save_path,dir_path=None,save_name='word2vec_model',
         sentences = word2vec.PathLineSentences(dir_path)
         model = word2vec.Word2Vec(sentences, size=model_size,window=model_window,min_count=model_min_count,**kw)
         #保存模型，供日後使用
-        model.save(os.path.join(dir_path,save_name))
+        model.save(save_path)
     #模型讀取方式
     # model = word2vec.Word2Vec.load("your_model_name") 
 
