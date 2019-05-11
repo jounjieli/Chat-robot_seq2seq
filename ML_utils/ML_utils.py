@@ -24,7 +24,36 @@ def draw_im_poly(image,im_num):
         subfig.axis('off')
         subfig.imshow(image[num],cmap='gray')
     plt.show()
+    
+def dict_change_obj_attribute(obj,attr_dict):
+    """
+    usage:{"epochs":3,"vocabulary.min_count":2}   
+    """
+    for key,value in attr_dict.items():
+        var_list = key.split(r".")
+        var = obj
+        for num in range(len(var_list)-1):
+            var = getattr(var,var_list[num])
+        setattr(var,var_list[-1],value)
 
+def add_word2vec_word(model_path,save_path,train_file_path,replace_old=False,
+                      model_attr={"vocabulary.min_count":1}):
+    """
+    train_file_path = sentences text path
+    model_attr default = {"vocabulary.min_count":1}
+    """
+    import logging
+    from gensim.models import word2vec
+    logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+    #load word2vec model
+    word2vec_modle_path = model_path
+    model = word2vec.Word2Vec.load(word2vec_modle_path)
+    dict_change_obj_attribute(model,model_attr)   #修改之前訓練時的設定ex.min_count(新增的句子較少所以 詞的最小出現次數改為1)
+    sentences = word2vec.LineSentence(train_file_path)
+    model.build_vocab(sentences, update=True)#训练该行
+    model.train(sentences,total_examples= model.corpus_count,epochs= model.epochs)
+    model.save(save_path)
+        
 #取得文件資料列表(包括資料夾)
 def Get_dir_file_list(dir_path,file_filter_=None,distinguish=False,regular=False):
     """
@@ -123,16 +152,29 @@ def Merge_dir_file(dir_path,save_name='dir_file_merge',file_filter_=None,regular
         with open(file_path,'r',encoding=encoding) as f:
             read_file = f.read()
             if file_remove_LF == True:
-                read_file = Remove_str_LR(read_file)
+                read_file = Remove_str_LF(read_file)
             file_merge += read_file
             if add_line_Feed == True:
                 file_merge = file_merge + '\n'
     with open(save_path,'w',encoding=encoding) as save:
         save.write(file_merge)
     return file_merge
-def Remove_str_LR(str_in):
+def Remove_str_LF(str_in):
     str_out = re.sub(r"\n", r"", str_in)
     return str_out
+
+def data_add_token_SOS_EOS(file_path,save_path,replace_old=False,SOS="__SOS.Token__",EOS="__EOS.Token__"):
+    with open(file_path,"r",encoding="utf-8") as f_r:
+        with open(save_path,"w",encoding="utf-8") as f_w:
+            for line in f_r:
+                if line != "\n":
+                    pair = line.split("\t")
+                    pair[0] = SOS+pair[0]+EOS
+                    pair[1] = SOS+pair[1].strip("\n")+EOS+"\n"
+                    pair_str = pair[0]+"\t"+pair[1]
+                    f_w.write(pair_str)
+    if replace_old == True:
+        shutil.move(save_path,file_path)
 
 #jieba字典合併
 def jieba_dict_merge(dir_path,save_name='jieba_merge.txt',file_filter_=None,regular=False,encoding='utf-8'):
@@ -158,7 +200,6 @@ def jieba_dict_merge(dir_path,save_name='jieba_merge.txt',file_filter_=None,regu
                         new_dict[key][2] = new_dict[key][2]+1
                 if (key in new_dict) == False:
                     new_dict[key] = [word_dict,[word_class],1]
-
     with open(save_path,"w",encoding=encoding) as f:
         for key,vaule in new_dict.items():
             f.write(vaule[0])
@@ -307,7 +348,7 @@ def Opencc_str(string,conversion='s2t'):
 
 #分詞文件，儲存
 def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter=' ',
-                            file_delimiter='\n',stopword_path=None,encoding='utf-8',
+                            line_delimiter='\n',stopword_path=None,encoding='utf-8',
                             dict_path='jieba_dict/dict.txt.big',load_userdict_path=None,
                             cut_all=False,HMM=True):
     """
@@ -342,7 +383,7 @@ def Jieba_file_segmentation(file_path,save_path,replace_old=False,word_delimiter
                 #依每個詞判斷是否為停用詞(不是就寫入)
                 if word not in stopword_set:
                     output.write(word + word_delimiter)     #每一行的iter(詞)以空格隔開
-            output.write(file_delimiter)      #iter完以換行符區隔
+            output.write(line_delimiter)      #iter完以換行符區隔
             if (texts_num + 1) % 10000 == 0:
                 logging.info("已完成前 %d 行的斷詞" % (texts_num + 1))
     output.close()

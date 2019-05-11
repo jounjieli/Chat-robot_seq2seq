@@ -217,3 +217,5 @@ der 3 uj
 台妹 3 n
 櫻花妹 1 n
 麥當當 1 n
+__SOS.Token__ 100000 n
+__EOS.Token__ 100000 n
