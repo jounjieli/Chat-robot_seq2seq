@@ -476,6 +476,14 @@ def WordToList_file(file_path,encoding='utf-8',max_word_num=None,word_split=' ',
                             word_list.append(padding)
                         save_list.append(word_list)
     return save_list
+
+#wordvec存成keyvector
+def wordvec2keyvector(model_path,save_path):
+    from gensim.models import word2vec
+    from gensim.models import KeyedVectors
+    model = word2vec.Word2Vec.load(model_path)
+    word_vectors = model.wv
+    word_vectors.save(save_path)
     
 #文件依word2vec模型轉vec後存成npy
 def ToVec_file_save(file_path,save_path,vec_model,vec_padding,
